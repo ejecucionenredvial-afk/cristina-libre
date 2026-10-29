@@ -470,9 +470,9 @@ const FIXTURE_VERSION = 9;
 // Regla específica: Mondelo en Fecha 1 juega a las 15:00
 const FIXED_TIMES = [ { teamName: 'Charly', time: '08:00' } ];
 
-// Horarios predefinidos: arranca 8:00, intervalos de 45 min
-const PRESET_TIMES = ['08:00','08:45','09:30','10:15','11:00','11:45',
-  '12:30','13:15','14:00','14:45','15:30','16:15','17:00','17:45'];
+// Horarios predefinidos: arranca 8:00, intervalos de 50 min, hasta 19:40
+const PRESET_TIMES = ['08:00','08:50','09:40','10:30','11:20','12:10',
+  '13:00','13:50','14:40','15:30','16:20','17:10','18:00','18:50','19:40'];
 
 function usedTimesInJornada(jornada, excludeMatchId){
   const used = new Set();
@@ -1441,6 +1441,10 @@ function drawJornadaCanvas(zone, jornada, matches){
     } else if(m.wo){
       ctx.font = '700 13px Barlow Condensed, sans-serif'; ctx.fillStyle = '#ff4d6a';
       ctx.fillText('W.O.', cx, teamsY);
+    } else if(m.adminResult){
+      const adminWinnerJ = getTeam(m.adminResult.teamId).name;
+      ctx.font = '700 11px IBM Plex Mono, monospace'; ctx.fillStyle = '#d97706';
+      ctx.fillText('Pts: ' + adminWinnerJ, cx, teamsY);
     } else if(m.jugado){
       ctx.font = '900 34px Barlow Condensed, sans-serif'; ctx.fillStyle = '#c8ff00';
       ctx.fillText(`${m.scoreHome}  –  ${m.scoreAway}`, cx, teamsY);
@@ -1941,7 +1945,7 @@ function drawFullScheduleCanvas(jornada){
       const adminWinner = getTeam(m.adminResult.teamId).name;
       ctx.font = '700 11px IBM Plex Mono, monospace';
       ctx.fillStyle = '#d97706';
-      ctx.fillText('Pts: ' + adminWinner, cx, y+65);
+      ctx.fillText('Pts: ' + adminWinner, cx, y+72);
     } else if(m.jugado){
       ctx.font = '900 38px Barlow Condensed, sans-serif';
       ctx.fillStyle = '#1d4ed8';
