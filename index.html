@@ -183,6 +183,7 @@
     width:90px;letter-spacing:.04em;
   }
   .sched-date:focus,.sched-time:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.1);}
+  .match-dow{font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;opacity:.75;}
 
   .match-status-row{display:flex;justify-content:flex-end;align-items:center;gap:8px;}
   .status{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;}
@@ -474,10 +475,14 @@ const FIXED_TIMES = [ { teamName: 'Charly', time: '08:00' } ];
 const PRESET_TIMES = ['08:00','08:50','09:40','10:30','11:20','12:10',
   '13:00','13:50','14:40','15:30','16:20','17:10','18:00','18:50','19:40'];
 
-function usedTimesInJornada(jornada, excludeMatchId){
+function usedTimesInJornada(jornada, excludeMatchId, date){
   const used = new Set();
   [...state.matches, ...(state.finalMatches||[])].forEach(m=>{
-    if(m.id !== excludeMatchId && m.jornada === jornada && m.time) used.add(m.time);
+    if(m.id !== excludeMatchId && m.jornada === jornada && m.time){
+      // Solo marca como ocupado si la fecha del otro partido coincide con la de este
+      // (si alguno no tiene fecha asignada, se conserva la restricción para evitar solapamientos)
+      if(!date || !m.date || m.date === date) used.add(m.time);
+    }
   });
   return used;
 }
@@ -492,8 +497,8 @@ function handleTimePick(sel){
   else if(zone && jornada) setJornadaTime(zone, parseInt(jornada), t);
 }
 
-function timePickerHtml(currentTime, onchangeExpr, jornada, matchId){
-  const used = (jornada != null && matchId != null) ? usedTimesInJornada(jornada, matchId) : new Set();
+function timePickerHtml(currentTime, onchangeExpr, jornada, matchId, date){
+  const used = (jornada != null && matchId != null) ? usedTimesInJornada(jornada, matchId, date||null) : new Set();
   // Parse zone/jornada from onchangeExpr for data attributes
   let dataAttrs = '';
   if(matchId != null){
@@ -1752,7 +1757,8 @@ function matchRowHtml(m, homeT, awayT){
         <div class="match-when-row">
           <input class="sched-date" type="date" value="${m.date||''}"
             onchange="setMatchSchedule(${m.id}, 'date', this.value)">
-          ${timePickerHtml(m.time||'', null, m.jornada, m.id)}
+          ${m.date ? `<span class="match-dow">${formatDateLong(m.date).split(' ')[0]}</span>` : ''}
+          ${timePickerHtml(m.time||'', null, m.jornada, m.id, m.date||null)}
         </div>`;
     }
   }
