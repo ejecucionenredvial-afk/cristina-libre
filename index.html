@@ -1861,6 +1861,14 @@ function exportFullSchedule(jornada){
   });
 }
 
+function formatDateShort(dateStr){
+  if(!dateStr) return '';
+  const [y,mo,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, mo-1, d);
+  const abbr = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][dt.getDay()];
+  return abbr+' '+String(d).padStart(2,'0')+'-'+String(mo).padStart(2,'0');
+}
+
 function drawFullScheduleCanvas(jornada){
   const msA = state.matches.filter(m=>m.zone==='A'&&m.jornada===jornada);
   const msB = state.matches.filter(m=>m.zone==='B'&&m.jornada===jornada);
@@ -1930,12 +1938,14 @@ function drawFullScheduleCanvas(jornada){
     ctx.textAlign = 'left';
     ctx.fillText(m.zone==='A'?'ZONA A':'ZONA B', margin, y+22);
 
-    // Time — big, blue
+    // Time + date — big, blue
     const timeStr = m.time ? m.time.slice(0,5)+'hs' : 'Horario a confirmar';
-    ctx.font = '900 34px Barlow Condensed, sans-serif';
+    const dateShort = m.date ? formatDateShort(m.date) : '';
+    const headerLine = (m.time && dateShort) ? timeStr + '  /  ' + dateShort : timeStr;
+    ctx.font = '900 28px Barlow Condensed, sans-serif';
     ctx.fillStyle = m.time ? '#1d4ed8' : '#94a3b8';
     ctx.textAlign = 'center';
-    ctx.fillText(timeStr, cx, y+32);
+    ctx.fillText(headerLine, cx, y+34);
 
     // Teams — dark, large
     ctx.font = '600 19px Inter, sans-serif';
