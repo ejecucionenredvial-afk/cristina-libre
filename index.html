@@ -463,9 +463,9 @@ const TEAM_NAMES = [
   "La Canilla","Los Amigos","Las Águilas (Cacho)","Lanús","Kamikazes","811",
   "Mondelo","Charly","Guadalupe","Patronato","El Rejunte","El Golazo"
 ];
-const STORAGE_KEY = "torneoMas50_v10";
+const STORAGE_KEY = "torneoMas50_v9";
 const TEAMS_FINGERPRINT = TEAM_NAMES.join('|');
-const FIXTURE_VERSION = 10;
+const FIXTURE_VERSION = 9;
 
 // Regla fija: Charly siempre juega a las 08:00
 // Regla específica: Mondelo en Fecha 1 juega a las 15:00
@@ -758,6 +758,9 @@ function startApp(){
               docRef.set(state).catch(()=>{});
             } else {
               state = loaded;
+              // Migración swap F7↔F11: si aún no fue aplicado,
+              // swapea la jornada de los partidos sin tocar scores ni resultados
+              applySwapF7F11IfNeeded(state, docRef);
             }
           } else {
             state = freshState();
@@ -784,6 +787,30 @@ function startApp(){
     console.error('Error fatal iniciando la app', e);
     fallbackToLocal();
   }
+}
+
+// Migración swap F7↔F11: detecta si Mondelo (ID 19) juega en jornada 7
+// (lo que significa que el swap AÚN NO fue aplicado) y lo aplica sobre los datos vivos.
+// Solo toca la propiedad "jornada" de los partidos de F7 y F11; nunca toca scores ni fechas.
+function applySwapF7F11IfNeeded(st, ref){
+  const ms = st.matches;
+  // Chequeo: ¿Mondelo (19) tiene un partido en jornada 7 que NO es contra Charly (20)?
+  const mondF7 = ms.find(m=>m.zone==='B'&&m.jornada===7&&(m.home===19||m.away===19));
+  if(!mondF7) return; // ya fue swapeado o no hay datos
+  const opponent = mondF7.home===19 ? mondF7.away : mondF7.home;
+  if(opponent===20) return; // ya está Mondelo vs Charly en F7, no hay que hacer nada
+
+  // Aplicar swap: todos los partidos de jornada 7 pasan a 11 y viceversa, por zona
+  ['A','B'].forEach(zone=>{
+    ms.forEach(m=>{
+      if(m.zone!==zone) return;
+      if(m.jornada===7)  m.jornada=11;
+      else if(m.jornada===11) m.jornada=7;
+    });
+  });
+  st.matches = ms;
+  if(ref) ref.set(st).catch(e=>console.error('Error guardando swap F7↔F11', e));
+  console.log('[swap] F7↔F11 aplicado y guardado en Firestore');
 }
 
 function fallbackToLocal(){
