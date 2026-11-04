@@ -471,9 +471,9 @@ const FIXTURE_VERSION = 9;
 // Regla específica: Mondelo en Fecha 1 juega a las 15:00
 const FIXED_TIMES = [ { teamName: 'Charly', time: '08:00' } ];
 
-// Horarios predefinidos: arranca 8:00, intervalos de 50 min, hasta 19:40
-const PRESET_TIMES = ['08:00','08:50','09:40','10:30','11:20','12:10',
-  '13:00','13:50','14:40','15:30','16:20','17:10','18:00','18:50','19:40'];
+// Horarios predefinidos: arranca 8:00, intervalos de 60 min
+const PRESET_TIMES = ['08:00','09:00','10:00','11:00','12:00','13:00',
+  '14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'];
 
 function usedTimesInJornada(jornada, excludeMatchId, date){
   const used = new Set();
@@ -638,7 +638,7 @@ function assignDemoSchedule(state){
     for(let j=1; j<=11; j++){
       const d = new Date(zoneBase); d.setDate(d.getDate() + (j-1)*7);
       const iso = toIso(d);
-      state.matches.filter(m=>m.zone===zone && m.jornada===j).forEach(m=>{ m.date = iso; m.time = '09:00'; });
+      state.matches.filter(m=>m.zone===zone && m.jornada===j).forEach(m=>{ m.date = iso; m.time = '08:00'; });
     }
   });
   // Final phase: weekly, starting the week after the zone phase ends.
