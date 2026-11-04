@@ -463,9 +463,9 @@ const TEAM_NAMES = [
   "La Canilla","Los Amigos","Las Águilas (Cacho)","Lanús","Kamikazes","811",
   "Mondelo","Charly","Guadalupe","Patronato","El Rejunte","El Golazo"
 ];
-const STORAGE_KEY = "torneoMas50_v9";
+const STORAGE_KEY = "torneoMas50_v10";
 const TEAMS_FINGERPRINT = TEAM_NAMES.join('|');
-const FIXTURE_VERSION = 9;
+const FIXTURE_VERSION = 10;
 
 // Regla fija: Charly siempre juega a las 08:00
 // Regla específica: Mondelo en Fecha 1 juega a las 15:00
@@ -592,6 +592,8 @@ function freshState(){
 
   // Zona A: orden personalizado para que Fecha 1 tenga los partidos especiales
   const roundsA = generateRoundRobin([...FIXTURE_INIT_A_IDS]);
+  // Swap F7 ↔ F11: Primavera vs Los Santias queda en F7, La Plaza vs Los Santias en F11
+  [roundsA[6], roundsA[10]] = [roundsA[10], roundsA[6]];
   roundsA.forEach((pairs,idx)=>{
     pairs.forEach(([home,away])=>{
       const key = [Math.min(home,away), Math.max(home,away)].join('-');
@@ -605,6 +607,8 @@ function freshState(){
   // Zona B: round-robin estándar
   const idsB = teams.filter(t=>t.zone==='B').map(t=>t.id);
   const roundsB = generateRoundRobin(idsB);
+  // Swap F7 ↔ F11: Mondelo vs Charly queda en F7
+  [roundsB[6], roundsB[10]] = [roundsB[10], roundsB[6]];
   roundsB.forEach((pairs,idx)=>{
     pairs.forEach(([home,away])=>{
       matches.push({id:matchId++,zone:'B',jornada:idx+1,home,away,
