@@ -789,28 +789,44 @@ function startApp(){
   }
 }
 
-// Migración swap F7↔F11: detecta si Mondelo (ID 19) juega en jornada 7
-// (lo que significa que el swap AÚN NO fue aplicado) y lo aplica sobre los datos vivos.
-// Solo toca la propiedad "jornada" de los partidos de F7 y F11; nunca toca scores ni fechas.
+// Migración swap F7↔F11: chequea y aplica cada zona de forma independiente.
+// Solo toca la propiedad "jornada"; nunca toca scores, fechas ni resultados.
 function applySwapF7F11IfNeeded(st, ref){
   const ms = st.matches;
-  // Chequeo: ¿Mondelo (19) tiene un partido en jornada 7 que NO es contra Charly (20)?
-  const mondF7 = ms.find(m=>m.zone==='B'&&m.jornada===7&&(m.home===19||m.away===19));
-  if(!mondF7) return; // ya fue swapeado o no hay datos
-  const opponent = mondF7.home===19 ? mondF7.away : mondF7.home;
-  if(opponent===20) return; // ya está Mondelo vs Charly en F7, no hay que hacer nada
+  let changed = false;
 
-  // Aplicar swap: todos los partidos de jornada 7 pasan a 11 y viceversa, por zona
-  ['A','B'].forEach(zone=>{
+  // ZONA A: si Los Santias (8) juega vs La Plaza (7) en jornada 7 → swap pendiente
+  const santF7 = ms.find(m=>m.zone==='A'&&m.jornada===7&&
+    ((m.home===8||m.away===8)&&(m.home===7||m.away===7)));
+  if(santF7){
     ms.forEach(m=>{
-      if(m.zone!==zone) return;
+      if(m.zone!=='A') return;
       if(m.jornada===7)  m.jornada=11;
       else if(m.jornada===11) m.jornada=7;
     });
-  });
-  st.matches = ms;
-  if(ref) ref.set(st).catch(e=>console.error('Error guardando swap F7↔F11', e));
-  console.log('[swap] F7↔F11 aplicado y guardado en Firestore');
+    changed = true;
+    console.log('[swap] Zona A F7↔F11 aplicado');
+  }
+
+  // ZONA B: si Mondelo (19) NO juega vs Charly (20) en jornada 7 → swap pendiente
+  const mondF7 = ms.find(m=>m.zone==='B'&&m.jornada===7&&(m.home===19||m.away===19));
+  if(mondF7){
+    const opp = mondF7.home===19 ? mondF7.away : mondF7.home;
+    if(opp !== 20){
+      ms.forEach(m=>{
+        if(m.zone!=='B') return;
+        if(m.jornada===7)  m.jornada=11;
+        else if(m.jornada===11) m.jornada=7;
+      });
+      changed = true;
+      console.log('[swap] Zona B F7↔F11 aplicado');
+    }
+  }
+
+  if(changed){
+    st.matches = ms;
+    if(ref) ref.set(st).catch(e=>console.error('Error guardando swap F7↔F11', e));
+  }
 }
 
 function fallbackToLocal(){
