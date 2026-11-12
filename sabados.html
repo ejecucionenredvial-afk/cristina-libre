@@ -466,18 +466,18 @@
 /* ============== DATA ============== */
 // Zona única de 10 equipos. El orden está armado para que la Fecha 1 salga así:
 // Los Santia vs El Tala · Maleficos vs Tapones Flojos · Los Verdes vs Tala Solano
-// Los Azules vs Chanca · Perro Malo vs Arco Iris
+// Los Azules vs Charca · Perro Malo vs Arco Iris
 const TEAM_NAMES = [
   "Los Santia","Maleficos","Los Verdes","Los Azules","Perro Malo",
-  "Arco Iris","Chanca","Tala Solano","Tapones Flojos","El Tala"
+  "Arco Iris","Charca","Tala Solano","Tapones Flojos","El Tala"
 ];
 // Horarios precargados de la Fecha 1 (local|visitante)
 const FECHA1_HORARIOS = {
   "Los Santia|El Tala":"14:00", "Maleficos|Tapones Flojos":"15:00", "Los Verdes|Tala Solano":"16:00",
-  "Los Azules|Chanca":"17:00", "Perro Malo|Arco Iris":"18:00"
+  "Los Azules|Charca":"17:00", "Perro Malo|Arco Iris":"18:00"
 };
 // Cambios de nombre: se aplican sobre los datos ya guardados sin borrar resultados
-const TEAM_RENAMES = {};
+const TEAM_RENAMES = { "Chanca": "Charca" };
 function applyRenames(s){
   if(s && s.teams) s.teams.forEach(t=>{ if(TEAM_RENAMES[t.name]) t.name = TEAM_RENAMES[t.name]; });
   return s;
