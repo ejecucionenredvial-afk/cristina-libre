@@ -465,19 +465,19 @@
   }) : Promise.resolve();
 /* ============== DATA ============== */
 // Zona única de 10 equipos. El orden está armado para que la Fecha 1 salga así:
-// Los Santia vs El Tala · Maleficos vs Tapones Flojos · Los Verdes vs Tala Solano
+// Los Santia vs El Tala · Maleficos vs Tapones Flojos · Los Verdes vs El Deca
 // Los Azules vs Charca · Perro Malo vs Arco Iris
 const TEAM_NAMES = [
   "Los Santia","Maleficos","Los Verdes","Los Azules","Perro Malo",
-  "Arco Iris","Charca","Tala Solano","Tapones Flojos","El Tala"
+  "Arco Iris","Charca","El Deca","Tapones Flojos","El Tala"
 ];
 // Horarios precargados de la Fecha 1 (local|visitante)
 const FECHA1_HORARIOS = {
-  "Los Santia|El Tala":"14:00", "Maleficos|Tapones Flojos":"15:00", "Los Verdes|Tala Solano":"16:00",
+  "Los Santia|El Tala":"14:00", "Maleficos|Tapones Flojos":"15:00", "Los Verdes|El Deca":"16:00",
   "Los Azules|Charca":"17:00", "Perro Malo|Arco Iris":"18:00"
 };
 // Cambios de nombre: se aplican sobre los datos ya guardados sin borrar resultados
-const TEAM_RENAMES = { "Chanca": "Charca" };
+const TEAM_RENAMES = { "Chanca": "Charca", "Tala Solano": "El Deca" };
 function applyRenames(s){
   if(s && s.teams) s.teams.forEach(t=>{ if(TEAM_RENAMES[t.name]) t.name = TEAM_RENAMES[t.name]; });
   return s;
@@ -487,6 +487,8 @@ const FECHA1_DIA = "2026-11-14";       // Fecha 1: sábado 14 de noviembre
 const STORAGE_KEY = "torneoSabados2_v1";
 const FIRESTORE_DOC = "sabados2";       // documento propio en Firestore (el torneo original usa "mas50")
 const TEAMS_FINGERPRINT = TEAM_NAMES.join('|');
+// Los nombres se pueden editar desde la app: el control de compatibilidad usa la cantidad de equipos, no los nombres
+function teamsCompatible(s){ return !!(s && s.teams && s.teams.length === TEAM_NAMES.length); }
 const FIXTURE_VERSION = 1;
 // Se juega los sábados: cada fecha arranca con el sábado siguiente a la anterior (editable)
 function sabadoDeFecha(n){
@@ -749,8 +751,7 @@ function startApp(){
         try{
           if(snap.exists){
             const loaded = normalizeState(snap.data());
-            const savedFp = loaded.teams ? loaded.teams.map(t=>t.name).join('|') : '';
-            const needsReset = savedFp !== TEAMS_FINGERPRINT || loaded.fixtureVersion !== FIXTURE_VERSION;
+            const needsReset = !teamsCompatible(loaded) || loaded.fixtureVersion !== FIXTURE_VERSION;
             if(needsReset){
               state = freshState();
               docRef.set(state).catch(()=>{});
@@ -816,8 +817,7 @@ function loadState(){
   if(raw){
     try {
       const parsed = applyRenames(JSON.parse(raw));
-      const savedFingerprint = parsed.teams ? parsed.teams.map(t=>t.name).join('|') : '';
-      if(savedFingerprint === TEAMS_FINGERPRINT && parsed.fixtureVersion === FIXTURE_VERSION) return parsed;
+      if(teamsCompatible(parsed) && parsed.fixtureVersion === FIXTURE_VERSION) return parsed;
     } catch(e){ /* fall through */ }
   }
   return freshState();
@@ -984,6 +984,21 @@ function setTeamScore(matchId, side, value){
   const v = value === "" ? null : Math.max(0, Math.min(99, parseInt(value,10)||0));
   if(side==='home') m.scoreHome = v; else m.scoreAway = v;
   m.jugado = (m.scoreHome!==null && m.scoreAway!==null);
+  persistState();
+  renderAll();
+}
+
+function renameTeam(teamId){
+  const team = getTeam(teamId);
+  const nuevo = prompt(`Nuevo nombre para "${team.name}":`, team.name);
+  if(nuevo === null) return;
+  const nombre = nuevo.trim().replace(/\s+/g,' ');
+  if(!nombre){ alert('El nombre no puede quedar vacío.'); return; }
+  if(nombre === team.name) return;
+  if(state.teams.some(t=>t.id!==teamId && t.name.toLowerCase()===nombre.toLowerCase())){
+    alert(`Ya hay un equipo llamado "${nombre}".`); return;
+  }
+  team.name = nombre;
   persistState();
   renderAll();
 }
@@ -2091,7 +2106,7 @@ function renderEquipos(){
   const b = state.teams.filter(t=>t.zone==='B');
   const itemHtml = t => `
     <div class="teamitem">
-      <span class="nm"><span class="zonedot ${t.zone}"></span>${t.name}</span>
+      <span class="nm"><span class="zonedot ${t.zone}"></span>${t.name}${isViewOnly() ? '' : ` <button class="action ghost small" style="padding:4px 10px;margin-left:6px" onclick="renameTeam(${t.id})" title="Cambiar nombre">✏️</button>`}</span>
       ${isViewOnly()
         ? `<span class="retbadge" style="${t.retirado?'':'opacity:.35;border-color:var(--chalk-faint);color:var(--chalk-faint);'}">${t.retirado?'RETIRADO':'ACTIVO'}</span>`
         : `<label class="switch">
@@ -2102,7 +2117,7 @@ function renderEquipos(){
     </div>
   `;
   return `
-    <h2 class="sectiontitle">Equipos <span class="tag">Marcá un retiro para aplicar W.O. automático</span></h2>
+    <h2 class="sectiontitle">Equipos <span class="tag">${isViewOnly() ? 'Marcá un retiro para aplicar W.O. automático' : '✏️ cambiar nombre · interruptor = retiro (W.O. automático)'}</span></h2>
     <div class="card">
       <div class="teamlist">
         <div>${a.slice(0,Math.ceil(a.length/2)).map(itemHtml).join('')}</div>
