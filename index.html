@@ -1448,13 +1448,18 @@ function drawBannerOnCanvas(ctx, width, margin){
   ctx.restore();
   // Línea dorada
   ctx.fillStyle='#f0be1e'; ctx.fillRect(0,bannerH-4,width,4);
-  // Logo círculo — fondo blanco + imagen via drawLogoOnCanvas
+  // Logo círculo
   const logoR=44, logoCX=margin+logoR+4, logoCY=bannerH/2;
   ctx.save();
   ctx.beginPath(); ctx.arc(logoCX,logoCY,logoR,0,Math.PI*2);
-  ctx.fillStyle='#fff'; ctx.fill();
+  ctx.fillStyle='#ffffff'; ctx.fill();
+  if(LOGO_IMG&&LOGO_IMG.complete&&LOGO_IMG.naturalWidth>0){
+    ctx.clip();
+    const iw=LOGO_IMG.naturalWidth,ih=LOGO_IMG.naturalHeight;
+    const sc=(logoR*2)/Math.min(iw,ih);
+    ctx.drawImage(LOGO_IMG,logoCX-iw*sc/2,logoCY-ih*sc/2,iw*sc,ih*sc);
+  }
   ctx.restore();
-  drawLogoOnCanvas(ctx, logoCX, logoCY, logoR);
   ctx.beginPath(); ctx.arc(logoCX,logoCY,logoR,0,Math.PI*2);
   ctx.strokeStyle='rgba(255,255,255,.8)'; ctx.lineWidth=2.5; ctx.stroke();
   // Texto
@@ -1470,6 +1475,7 @@ function drawBannerOnCanvas(ctx, width, margin){
   // Pill DOMINGOS
   const pillW=100,pillH=20,pillX=tx,pillY=logoCY+50;
   ctx.fillStyle='#f0be1e';
+  ctx.beginPath();
   if(ctx.roundRect) ctx.roundRect(pillX,pillY,pillW,pillH,4); else ctx.rect(pillX,pillY,pillW,pillH);
   ctx.fill();
   ctx.font='900 13px Barlow Condensed, sans-serif';
@@ -1491,7 +1497,7 @@ function drawLogoOnCanvas(ctx, cx, cy, r){
   }
   ctx.restore();
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
-  ctx.strokeStyle = 'rgba(200,255,0,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
 }
 
 function drawJornadaCanvas(zone, jornada, matches){
