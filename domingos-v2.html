@@ -122,13 +122,6 @@ footer .wrap{display:flex;gap:24px;align-items:center;justify-content:space-betw
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
 .sheet>div{width:100%;max-width:520px;max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);padding:20px}
 label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
-.chat{display:flex;flex-direction:column;gap:8px;margin:10px 0;max-height:46vh;overflow:auto}
-.msg{max-width:88%;padding:10px 14px;line-height:1.4;white-space:pre-wrap;border-radius:12px}
-.msg.u{align-self:flex-end;background:var(--gold);color:var(--ink)}
-.msg.a{align-self:flex-start;background:var(--panel2);border:1px solid var(--line)}
-.sug{display:flex;gap:6px;flex-wrap:wrap}
-.sug button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--field);font-size:13px}
-.fab{position:fixed;right:16px;bottom:16px;z-index:30;min-height:52px;padding:0 20px;border-radius:999px;border:0;background:var(--gold);color:var(--ink);font-weight:800;box-shadow:0 6px 24px rgba(0,0,0,.5)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;background:var(--text);color:var(--ink);padding:10px 16px;border-radius:999px;font-weight:600;z-index:60;max-width:90%}
 .teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
 .team{display:flex;align-items:center;gap:12px;padding:12px;background:var(--field)}
@@ -159,7 +152,6 @@ label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
   .mrow .tm{grid-column:1/-1;text-align:center}
   .mrow .nm{font-size:14px}
   .mrow .sc{font-size:26px}
-  .fab{min-height:44px;padding:0 16px;font-size:14px;right:12px;bottom:12px}
   .toast{bottom:70px}
 }
 </style>
@@ -219,7 +211,7 @@ function buildSeed(){
       { id: 'n4', tag: 'Torneo', title: 'Cómo se define la Fase Final del campeonato', body: 'Pasan a la fase final los mejores de cada zona. El detalle del cruce se publica al cerrar la fase de zonas.', ts: now - 80 * 36e5 }
     ],
     gallery: [], hero: '', logo: DEF_LOGO,
-    settings: { editor: true, key: '', model: 'gemini-2.5-flash', venue: '', city: 'Lanús', theme: Object.assign({}, DEF_THEME) }
+    settings: { editor: true, venue: '', city: 'Lanús', theme: Object.assign({}, DEF_THEME) }
   };
 }
 let S;
@@ -271,7 +263,7 @@ function colorsFromLogo(url, cb){
 }
 function logoMark(h){ return S.logo ? '<img class="logoimg" style="height:' + h + 'px" src="' + S.logo + '" alt="Logo CFK Libre">' : '<span class="shield cond">CL</span>'; }
 
-const ui = { tab: 'home', fecha: null, newsId: null, zone: 'A', sheet: null, chat: [], busy: false, toast: '', draft: { tag: 'Noticia', title: '', body: '' } };
+const ui = { tab: 'home', fecha: null, newsId: null, zone: 'A', sheet: null, toast: '', draft: { tag: 'Noticia', title: '', body: '' } };
 const played = g => g.hs !== null && g.as !== null && g.hs !== '' && g.as !== '';
 const nextFecha = () => S.fechas.find(f => f.games.some(g => !played(g))) || S.fechas[S.fechas.length - 1];
 const lastFecha = () => { const p = S.fechas.filter(f => f.games.some(played)); return p[p.length - 1] || S.fechas[0]; };
@@ -311,60 +303,6 @@ function readImage(file, max, cb, png){
   }; img.src = fr.result; };
   fr.readAsDataURL(file);
 }
-
-/* ===== IA (Gemini gratis) + respaldo local ===== */
-function contexto(){
-  const L = [];
-  S.fechas.forEach(f => { L.push('FECHA ' + f.n + ' (' + fmtDate(f.date).long + ')'); f.games.forEach(g => L.push('  Zona ' + g.zone + ' ' + g.time + ' ' + g.home + (played(g) ? ' ' + g.hs + '-' + g.as + ' ' : ' vs ') + g.away)); });
-  ['A', 'B'].forEach(z => { L.push('TABLA ZONA ' + z); standings(z).forEach((r, i) => L.push('  ' + (i + 1) + '. ' + r.t + ' ' + r.pts + ' pts, PJ ' + r.pj + ', DG ' + (r.gf - r.gc))); });
-  return L.join('\n');
-}
-async function gemini(system, prompt){
-  const { key, model } = S.settings;
-  if (!key) throw new Error('SINCLAVE');
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model || 'gemini-2.5-flash') + ':generateContent';
-  let r;
-  try { r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }] }) }); }
-  catch (e) { throw new Error('No pude conectar con la IA. En la vista previa de Claude esto no funciona; sí en tu página publicada.'); }
-  if (r.status === 429) throw new Error('Se alcanzó el límite gratuito de la IA. Probá de nuevo en un minuto.');
-  if (r.status === 400 || r.status === 403) throw new Error('La clave o el modelo no son válidos. Revisalos en Ajustes.');
-  if (!r.ok) throw new Error('La IA respondió con error ' + r.status + '.');
-  const j = await r.json(), t = j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts;
-  if (!t) throw new Error('La IA no devolvió texto.');
-  return t.map(p => p.text || '').join('').trim();
-}
-function localNews(){
-  const f = lastFecha(), ps = f.games.filter(played);
-  const lead = ['A', 'B'].map(z => { const s = standings(z)[0]; return 'Zona ' + z + ': ' + s.t + ' (' + s.pts + ' pts)'; }).join(' · ');
-  return { title: 'Fecha ' + f.n + ': así terminó la jornada', body: 'Se jugó la fecha ' + f.n + ' del domingo ' + fmtDate(f.date).short + '.\n\n' + ps.map(g => g.home + ' ' + g.hs + ' - ' + g.as + ' ' + g.away).join('\n') + '\n\nPuntas: ' + lead + '.' };
-}
-async function redactarNoticia(){
-  if (!S.settings.key) return localNews();
-  const f = lastFecha();
-  const txt = await gemini('Sos el redactor del torneo de fútbol veterano +50 Cristina Libre, de Lanús, Argentina. Escribís en español rioplatense, tono cálido y claro. Usá SOLO los datos que te doy, no inventes goleadores ni hechos.',
-    'Redactá una noticia de 90 a 130 palabras sobre la fecha ' + f.n + '. Respondé exactamente con dos partes: una línea "TITULO: ..." y luego "TEXTO: ...".\n\nDatos:\n' + contexto());
-  const t = /TITULO:\s*(.+)/i.exec(txt), b = /TEXTO:\s*([\s\S]+)/i.exec(txt);
-  return { title: t ? t[1].replace(/\*+/g, '').trim() : 'Fecha ' + f.n + ': resumen', body: (b ? b[1] : txt).replace(/\*+/g, '').trim() };
-}
-function localAnswer(q){
-  const s = q.toLowerCase(), team = ALL().find(t => s.includes(t.toLowerCase()));
-  if (team) {
-    const zone = TEAMS.A.includes(team) ? 'A' : 'B', pos = standings(zone).findIndex(r => r.t === team) + 1;
-    let nxt = null; S.fechas.forEach(f => f.games.forEach(g => { if (!nxt && !played(g) && (g.home === team || g.away === team)) nxt = { f, g }; }));
-    return team + ' va ' + pos + '° en la Zona ' + zone + '.' + (nxt ? ' Próximo partido: ' + fmtDate(nxt.f.date).long + ' a las ' + nxt.g.time + ', ' + nxt.g.home + ' vs ' + nxt.g.away + '.' : ' No tiene partidos pendientes.');
-  }
-  if (/tabla|posici|punter|primero|lider|líder/.test(s)) return ['A', 'B'].map(z => 'Zona ' + z + ': ' + standings(z).slice(0, 3).map((r, i) => (i + 1) + '. ' + r.t + ' (' + r.pts + ')').join(', ')).join('\n');
-  if (/cu[aá]ndo|horario|juega|pr[oó]xima/.test(s)) { const f = nextFecha(); return 'Próxima fecha: ' + fmtDate(f.date).long + '. Primer partido ' + f.games[0].time + ': ' + f.games[0].home + ' vs ' + f.games[0].away + '.'; }
-  return 'Sin la IA conectada respondo por equipo (por ejemplo "¿cuándo juega Charly?"), o tablas. Cargá una clave gratuita en Ajustes para preguntas libres.';
-}
-async function preguntar(q){
-  ui.chat.push({ r: 'u', t: q }); ui.busy = true; render(); chatScroll();
-  let ans;
-  try { ans = S.settings.key ? await gemini('Sos el asistente del torneo +50 Cristina Libre de los domingos (Lanús). Respondé breve, en español rioplatense, SOLO con los datos que te paso. Si no está en los datos, decí que no lo sabés.', 'Datos del torneo:\n' + contexto() + '\n\nPregunta: ' + q) : localAnswer(q); }
-  catch (e) { ans = e.message === 'SINCLAVE' ? localAnswer(q) : e.message; }
-  ui.chat.push({ r: 'a', t: ans }); ui.busy = false; render(); chatScroll();
-}
-function chatScroll(){ setTimeout(() => { const c = document.querySelector('.chat'); if (c) c.scrollTop = c.scrollHeight; const i = document.getElementById('q'); if (i) i.focus(); }, 30); }
 
 /* ===== Vistas ===== */
 const ICON = { gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>', cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', pin: '<path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>' };
@@ -461,32 +399,19 @@ function sheetSettings(){
     '<label>Logo del torneo (CFK Libre)</label><div style="display:flex;gap:8px;flex-wrap:wrap"><label class="btn ghost sm" style="display:inline-flex;align-items:center;margin:0;cursor:pointer;color:var(--text)">Subir logo<input type="file" accept="image/*" data-act="upload" data-kind="logo" style="display:none"></label>' + (S.logo ? '<button class="btn ghost sm" data-act="logocolors">Tomar colores del logo</button><button class="btn danger sm" data-act="dellogo">Quitar</button>' : '') + '</div>' +
     '<label>Colores</label><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center"><label style="margin:0;display:flex;gap:6px;align-items:center"><input type="color" id="cb" value="' + s.theme.blue + '" style="width:44px;height:44px;padding:2px"> Azul</label><label style="margin:0;display:flex;gap:6px;align-items:center"><input type="color" id="cs" value="' + s.theme.sky + '" style="width:44px;height:44px;padding:2px"> Celeste</label><label style="margin:0;display:flex;gap:6px;align-items:center"><input type="color" id="cg" value="' + s.theme.gold + '" style="width:44px;height:44px;padding:2px"> Amarillo</label></div>' +
     '<label>Foto de portada (opcional)</label><div style="display:flex;gap:8px"><label class="btn ghost sm" style="display:inline-flex;align-items:center;margin:0;cursor:pointer;color:var(--text)">Elegir foto<input type="file" accept="image/*" data-act="upload" data-kind="hero" style="display:none"></label>' + (S.hero ? '<button class="btn danger sm" data-act="delhero">Quitar</button>' : '') + '</div>' +
-    '<label for="k">Clave de la IA (Gemini, gratis)</label><input id="k" type="password" autocomplete="off" placeholder="Clave de Google AI Studio" value="' + esc(s.key) + '"><label for="m">Modelo</label><input id="m" value="' + esc(s.model) + '">' +
-    '<p class="note">La clave se guarda solo en este navegador. El plan gratuito de Google tiene límites y puede usar lo enviado para mejorar sus productos: no cargues datos personales.</p>' +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn" data-act="savesettings">Guardar</button><button class="btn ghost" data-act="closesheet">Cerrar</button><button class="btn danger" data-act="reset">Restaurar datos de muestra</button></div></div></div>';
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn" data-act="savesettings">Guardar</button><button class="btn ghost" data-act="closesheet">Cerrar</button><button class="btn danger" data-act="reset">Restaurar datos de muestra</button></div></div></div>';
 }
 function sheetNews(){
   const d = ui.draft;
-  return '<div class="sheet" data-act="closesheet"><div><h2 class="cond" style="margin:0 0 4px;font-size:28px">NUEVA NOTICIA</h2><button class="btn ghost" style="width:100%;margin-top:8px"' + (ui.busy ? ' disabled' : '') + ' data-act="aidraft">' + (ui.busy ? 'Redactando…' : 'Redactar con IA la nota de la fecha ' + lastFecha().n) + '</button>' +
-    '<label for="nt">Etiqueta</label><select id="nt">' + ['Noticia', 'Destacada', 'Fixture', 'Sanciones', 'Posiciones', 'Torneo'].map(t => '<option' + (d.tag === t ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' +
+  return '<div class="sheet" data-act="closesheet"><div><h2 class="cond" style="margin:0 0 4px;font-size:28px">NUEVA NOTICIA</h2><label for="nt">Etiqueta</label><select id="nt">' + ['Noticia', 'Destacada', 'Fixture', 'Sanciones', 'Posiciones', 'Torneo'].map(t => '<option' + (d.tag === t ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' +
     '<label for="ntt">Título</label><input id="ntt" value="' + esc(d.title) + '"><label for="nb">Texto</label><textarea id="nb" rows="8">' + esc(d.body) + '</textarea>' +
     '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn" data-act="publish">Publicar</button><button class="btn ghost" data-act="closesheet">Cancelar</button></div></div></div>';
 }
-function sheetChat(){
-  const sug = ['¿Cuándo juega Charly?', '¿Cómo está la Zona A?', '¿Quién va puntero en la Zona B?'];
-  return '<div class="sheet" data-act="closesheet"><div><h2 class="cond" style="margin:0 0 4px;font-size:28px">PREGUNTALE AL TORNEO</h2><p class="note">' + (S.settings.key ? 'IA conectada (Gemini).' : 'IA sin conectar: respondo preguntas simples. Cargá una clave gratuita en Ajustes para conversar libremente.') + '</p>' +
-    '<div class="sug">' + sug.map(q => '<button data-act="ask" data-q="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' +
-    '<div class="chat">' + ui.chat.map(m => '<div class="msg ' + m.r + '">' + esc(m.t) + '</div>').join('') + (ui.busy ? '<div class="msg a">Pensando…</div>' : '') + '</div>' +
-    '<form data-form="ask" style="display:flex;gap:8px"><input id="q" placeholder="Escribí tu pregunta" aria-label="Pregunta" autocomplete="off"><button class="btn" type="submit">Enviar</button></form>' +
-    '<div style="margin-top:10px"><button class="btn ghost sm" data-act="closesheet">Cerrar</button></div></div></div>';
-}
-
 function render(){
   applyTheme();
   const v = { home: homeView, news: viewNews, fixture: viewFixture, tables: viewTables, teams: viewTeams, gallery: viewGallery, contact: viewContact }[ui.tab]();
   document.getElementById('root').innerHTML = navbar() + v + footer() +
-    '<button class="fab" data-act="chat">Preguntale al torneo</button>' +
-    (ui.sheet === 'settings' ? sheetSettings() : ui.sheet === 'news' ? sheetNews() : ui.sheet === 'chat' ? sheetChat() : '') +
+    (ui.sheet === 'settings' ? sheetSettings() : ui.sheet === 'news' ? sheetNews() : '') +
     (ui.toast ? '<div class="toast" role="status">' + esc(ui.toast) + '</div>' : '');
 }
 function toast(t){ ui.toast = t; render(); setTimeout(() => { ui.toast = ''; render(); }, 2600); }
@@ -502,26 +427,17 @@ document.addEventListener('click', async e => {
   else if (a === 'fecha') { ui.fecha = +el.dataset.n; render(); }
   else if (a === 'zone') { ui.zone = el.dataset.z; render(); }
   else if (a === 'settings') { ui.sheet = 'settings'; render(); }
-  else if (a === 'chat') { ui.sheet = 'chat'; render(); chatScroll(); }
   else if (a === 'closesheet') { ui.sheet = null; render(); }
   else if (a === 'savesettings') {
     const s = S.settings; s.editor = document.getElementById('ed').checked; s.venue = document.getElementById('ve').value.trim(); s.city = document.getElementById('ci').value.trim();
     s.theme = { blue: document.getElementById('cb').value, sky: document.getElementById('cs').value, gold: document.getElementById('cg').value };
-    s.key = document.getElementById('k').value.trim(); s.model = document.getElementById('m').value.trim() || 'gemini-2.5-flash';
     save(); ui.sheet = null; render(); toast('Ajustes guardados');
   }
-  else if (a === 'reset') { const keep = { logo: S.logo, theme: S.settings.theme }; S = buildSeed(); S.logo = keep.logo; S.settings.theme = keep.theme; save(); ui.sheet = null; ui.fecha = null; ui.chat = []; render(); toast('Datos de muestra restaurados'); }
+  else if (a === 'reset') { const keep = { logo: S.logo, theme: S.settings.theme }; S = buildSeed(); S.logo = keep.logo; S.settings.theme = keep.theme; save(); ui.sheet = null; ui.fecha = null; render(); toast('Datos de muestra restaurados'); }
   else if (a === 'dellogo') { S.logo = ''; save(); render(); }
   else if (a === 'logocolors') { colorsFromLogo(S.logo, c => { if (!Object.keys(c).length) { toast('No pude detectar colores en el logo'); return; } Object.assign(S.settings.theme, c); save(); render(); toast('Colores tomados del logo'); }); }
   else if (a === 'delhero') { S.hero = ''; save(); render(); }
   else if (a === 'newnews') { ui.draft = { tag: 'Noticia', title: '', body: '' }; ui.sheet = 'news'; render(); }
-  else if (a === 'aidraft') {
-    ui.draft = { tag: document.getElementById('nt').value, title: document.getElementById('ntt').value, body: document.getElementById('nb').value };
-    ui.busy = true; render();
-    try { const r = await redactarNoticia(); ui.draft.title = r.title; ui.draft.body = r.body; }
-    catch (err) { ui.busy = false; render(); toast(err.message); return; }
-    ui.busy = false; render();
-  }
   else if (a === 'publish') {
     const t = document.getElementById('ntt').value.trim(), b = document.getElementById('nb').value.trim();
     if (!t || !b) { toast('Falta el título o el texto'); return; }
@@ -530,7 +446,6 @@ document.addEventListener('click', async e => {
   }
   else if (a === 'delnews') { S.news = S.news.filter(n => n.id !== el.dataset.id); save(); ui.newsId = null; render(); toast('Noticia borrada'); }
   else if (a === 'delphoto') { S.gallery.splice(+el.dataset.i, 1); save(); render(); }
-  else if (a === 'ask') { preguntar(el.dataset.q); }
 });
 document.addEventListener('change', e => {
   const el = e.target;
@@ -549,7 +464,6 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('submit', e => {
   const f = e.target;
-  if (f.dataset.form === 'ask') { e.preventDefault(); const q = document.getElementById('q').value.trim(); if (q && !ui.busy) preguntar(q); }
 });
 render();
 </script>
